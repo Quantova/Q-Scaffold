@@ -1,0 +1,18 @@
+{
+  "name": "quantova-dev-base-template",
+  "version": "0.1.0",
+  "description": "A minimal starter template for building on Quantova, the sovereign post quantum Layer 1.",
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "interact": "node interact.js",
+    "deploy:testnet": "QUANTOVA_GATEWAY=${QUANTOVA_GATEWAY:-} node deploy.js",
+    "deploy:local": "node deploy.js"
+  },
+  "dependencies": {
+    "@qunatovainc/qcore": "^0.1.0"
+  },
+  "license": "Apache-2.0 OR MIT"
+}

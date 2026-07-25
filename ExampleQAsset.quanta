@@ -1,0 +1,85 @@
+// License Apache-2.0 OR MIT
+//
+// ExampleQAsset is a minimal QAsset fungible token for the Quantova Virtual
+// Machine. QAsset is the Quantova fungible token standard. This contract is
+// written in Quanta, the Quantova contract language, where assets are linear
+// resources and whole classes of vulnerability are caught at compile time. The
+// Quanta compiler lowers it to a QVM container that the register machine runs.
+// See deploying.md.
+//
+// Amounts are u64, a single storage word, and are denominated in the token's
+// own smallest unit. The QAsset standard surface is a supply, per account
+// balances, spender allowances, a transfer, an approve, and a delegated
+// transfer, with a Transfer event and an Approval event.
+
+contract ExampleQAsset {
+    storage {
+        name: string,
+        symbol: string,
+        decimals: u8,
+        total_supply: u64,
+        balances: map<address, u64>,
+        allowances: map<address, map<address, u64>>,
+    }
+
+    event Transfer {
+        from: address,
+        to: address,
+        amount: u64,
+    }
+
+    event Approval {
+        owner: address,
+        spender: address,
+        amount: u64,
+    }
+
+    // The deployer receives the whole initial supply.
+    init(name: string, symbol: string, initial_supply: u64) {
+        self.name = name;
+        self.symbol = symbol;
+        self.decimals = 6;
+        self.total_supply = initial_supply;
+        self.balances[caller()] = initial_supply;
+        emit Transfer { from: zero_address(), to: caller(), amount: initial_supply };
+    }
+
+    pub fn balance_of(owner: address) -> u64 {
+        return self.balances[owner];
+    }
+
+    pub fn allowance(owner: address, spender: address) -> u64 {
+        return self.allowances[owner][spender];
+    }
+
+    pub fn transfer(to: address, amount: u64) -> bool {
+        self.move(caller(), to, amount);
+        return true;
+    }
+
+    pub fn approve(spender: address, amount: u64) -> bool {
+        self.allowances[caller()][spender] = amount;
+        emit Approval { owner: caller(), spender: spender, amount: amount };
+        return true;
+    }
+
+    pub fn transfer_from(from: address, to: address, amount: u64) -> bool {
+        let allowed: u64 = self.allowances[from][caller()];
+        require(allowed >= amount, "QAsset insufficient allowance");
+        self.allowances[from][caller()] = allowed - amount;
+        self.move(from, to, amount);
+        return true;
+    }
+
+    // Checked balance move. The u64 arithmetic in Quanta traps on overflow and
+    // on underflow, so an over spend reverts the transaction rather than
+    // wrapping.
+    fn move(from: address, to: address, amount: u64) {
+        require(to != zero_address(), "QAsset transfer to the zero address");
+        let from_balance: u64 = self.balances[from];
+        require(from_balance >= amount, "QAsset insufficient balance");
+        self.balances[from] = from_balance - amount;
+        self.balances[to] = self.balances[to] + amount;
+        emit Transfer { from: from, to: to, amount: amount };
+    }
+}
