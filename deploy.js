@@ -14,7 +14,7 @@
  * then sign and submit through the gateway.
  *
  * Signing and key management are done with QCore.js, the Quantova SDK published
- * on npm as @qunatovainc/qcore. Signatures are ML-DSA-65. The deployer key is
+ * on npm as @quantovainc/qcore. Signatures are ML-DSA-65. The deployer key is
  * read from QUANTOVA_DEPLOYER_KEY in the environment. Never commit a real key.
  * Use a testnet key funded from the faucet. See deploying.md.
  */
@@ -23,8 +23,8 @@ import fs from "node:fs";
 import { Gateway } from "./client.js";
 
 // QCore.js provides the keyring and ML-DSA-65 signing. Install it with
-// `npm install @qunatovainc/qcore` and uncomment the import below.
-// import { Keyring } from "@qunatovainc/qcore";
+// `npm install @quantovainc/qcore` and uncomment the import below.
+// import { Keyring } from "@quantovainc/qcore";
 
 const CONTAINER_PATH = process.env.COMPILED_CONTAINER_PATH || "./build/ExampleQAsset.qvm";
 

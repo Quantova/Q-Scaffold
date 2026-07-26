@@ -5,7 +5,7 @@ Set up the template and make your first read against Quantova.
 ## Prerequisites
 
 1. Node.js version 18 or newer. This template uses ES modules.
-2. QCore.js for signing, published on npm as @qunatovainc/qcore.
+2. QCore.js for signing, published on npm as @quantovainc/qcore.
 3. The Quanta compiler for contract work, which lowers Quanta source to a QVM container.
 
 ## Install

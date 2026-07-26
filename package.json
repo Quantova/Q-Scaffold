@@ -12,7 +12,7 @@
     "deploy:local": "node deploy.js"
   },
   "dependencies": {
-    "@qunatovainc/qcore": "^0.1.0"
+    "@quantovainc/qcore": "^0.1.0"
   },
   "license": "Apache-2.0 OR MIT"
 }

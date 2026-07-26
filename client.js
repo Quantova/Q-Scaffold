@@ -11,7 +11,7 @@
  * million Quon.
  *
  * For signing and key management use the QCore.js SDK, published on npm as
- * @qunatovainc/qcore. This file covers the read and submit surface of the gateway.
+ * @quantovainc/qcore. This file covers the read and submit surface of the gateway.
  * See interacting.md for the full method list.
  */
 

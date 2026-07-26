@@ -25,4 +25,4 @@ What every file in the template is for.
 
 ## Where the SDK comes in
 
-The QCore family is the client SDK. QCore.js is published on npm as @qunatovainc/qcore, QCore.rs is the Rust core, and QCore.py is the Python binding. This template uses QCore.js for key management and for signing transactions with ML-DSA-65. The gateway client in `client.js` covers the read and submit surface.
+The QCore family is the client SDK. QCore.js is published on npm as @quantovainc/qcore, QCore.rs is the Rust core, and QCore.py is the Python binding. This template uses QCore.js for key management and for signing transactions with ML-DSA-65. The gateway client in `client.js` covers the read and submit surface.
