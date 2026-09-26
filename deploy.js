@@ -24,7 +24,7 @@ import { Gateway } from "./client.js";
 
 // QCore.js provides the keyring and ML-DSA-65 signing. Install it with
 // `npm install @quantovainc/qcore` and uncomment the import below.
-// import { Keyring } from "@quantovainc/qcore";
+// import { Client, core } from "@quantovainc/qcore";
 
 const CONTAINER_PATH = process.env.COMPILED_CONTAINER_PATH || "./build/ExampleQAsset.qvm";
 
