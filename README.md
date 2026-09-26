@@ -25,11 +25,11 @@ npm install
 Point the client at a gateway.
 
 ```bash
-export QUANTOVA_GATEWAY="http://127.0.0.1:8080"
+export QUANTOVA_GATEWAY="http://127.0.0.1:8645"
 npm run interact
 ```
 
-Set QUANTOVA_GATEWAY to your gateway endpoint. The current testnet gateway URL is listed in the developer documentation. A local node serves the gateway on port 8080 by default.
+Set QUANTOVA_GATEWAY to your gateway endpoint. The current testnet gateway URL is listed in the developer documentation. A local node serves the gateway on port 8645 by default.
 
 ## What is inside
 

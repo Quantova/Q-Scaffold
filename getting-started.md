@@ -21,10 +21,10 @@ npm install
 Set the gateway endpoint in your shell or in a local env file.
 
 ```bash
-export QUANTOVA_GATEWAY="http://127.0.0.1:8080"
+export QUANTOVA_GATEWAY="http://127.0.0.1:8645"
 ```
 
-Set QUANTOVA_GATEWAY to your gateway endpoint. The current testnet gateway URL is listed in the developer documentation. A local node serves the gateway on port 8080 by default. Optionally set QUANTOVA_ADDRESS to a Q1 address to print its balance, and set QUANTOVA_DEPLOYER_KEY only when you are ready to deploy, using a testnet key.
+Set QUANTOVA_GATEWAY to your gateway endpoint. The current testnet gateway URL is listed in the developer documentation. A local node serves the gateway on port 8645 by default. Optionally set QUANTOVA_ADDRESS to a Q1 address to print its balance, and set QUANTOVA_DEPLOYER_KEY only when you are ready to deploy, using a testnet key.
 
 ## Get testnet funds
 

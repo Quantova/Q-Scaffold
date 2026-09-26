@@ -8,7 +8,7 @@
   },
   "scripts": {
     "interact": "node interact.js",
-    "deploy:testnet": "QUANTOVA_GATEWAY=${QUANTOVA_GATEWAY:-} node deploy.js",
+    "deploy:testnet": "QUANTOVA_GATEWAY=${QUANTOVA_GATEWAY:-https://rpc-testnet.quantova.org} node deploy.js",
     "deploy:local": "node deploy.js"
   },
   "dependencies": {

@@ -15,14 +15,14 @@
  * See interacting.md for the full method list.
  */
 
-const DEFAULT_GATEWAY = process.env.QUANTOVA_GATEWAY || "http://127.0.0.1:8080";
+const DEFAULT_GATEWAY = process.env.QUANTOVA_GATEWAY || "http://127.0.0.1:8645";
 
 /** One QTOV is one million Quon. */
 export const QUON_PER_QTOV = 1_000_000n;
 
 export class Gateway {
-  constructor(baseUrl = DEFAULT_GATEWAY) {
-    this.baseUrl = baseUrl.replace(/\/+$/, "");
+  constructor(baseUrl) {
+    this.baseUrl = (baseUrl || DEFAULT_GATEWAY).replace(/\/+$/, "");
   }
 
   /** Low level call. POST /v1/<method> with a flat JSON body. */
