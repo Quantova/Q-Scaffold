@@ -15,14 +15,22 @@
  * See interacting.md for the full method list.
  */
 
-const DEFAULT_GATEWAY = process.env.QUANTOVA_GATEWAY || "http://127.0.0.1:8645";
+const DEFAULT_GATEWAY = process.env.QUANTOVA_GATEWAY || "https://rpc-testnet.quantova.org";
+const TIMEOUT_MS = 15000;
+const RESPONSE_MAX = 8 * 1024 * 1024;
 
 /** One QTOV is one million Quon. */
 export const QUON_PER_QTOV = 1_000_000n;
 
 export class Gateway {
   constructor(baseUrl) {
-    this.baseUrl = (baseUrl || DEFAULT_GATEWAY).replace(/\/+$/, "");
+    const target = baseUrl || DEFAULT_GATEWAY;
+    const url = new URL(target);
+    const local = ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
+    if (url.protocol !== "https:" && !(url.protocol === "http:" && local)) {
+      throw new Error("the gateway must be reached over https, plain http is allowed only to this machine");
+    }
+    this.baseUrl = target.replace(/\/+$/, "");
   }
 
   /** Low level call. POST /v1/<method> with a flat JSON body. */
@@ -31,9 +39,12 @@ export class Gateway {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
+      signal: AbortSignal.timeout(TIMEOUT_MS),
     });
     if (!res.ok) throw new Error(`gateway ${method} returned HTTP ${res.status}`);
-    const data = await res.json();
+    const text = await res.text();
+    if (text.length > RESPONSE_MAX) throw new Error(`gateway ${method} returned too much data`);
+    const data = JSON.parse(text);
     if (data && data.error) throw new Error(`gateway ${method} error ${data.error}`);
     return data;
   }
@@ -66,8 +77,8 @@ export class Gateway {
   }
 
   /** A transaction by its hash. */
-  getTransaction(hash) {
-    return this.post("get_transaction", { hash });
+  getTransaction(txId) {
+    return this.post("get_transaction", { tx_id: txId });
   }
 
   /** A block by height or by hash. Pass { height } or { hash }. */
@@ -112,14 +123,14 @@ export class Gateway {
     const account = await this.getAccount(address);
     const quon = BigInt(account.balance);
     const whole = quon / QUON_PER_QTOV;
-    const frac = quon % QUON_PER_QTOV;
-    return Number(whole) + Number(frac) / Number(QUON_PER_QTOV);
+    const frac = (quon % QUON_PER_QTOV).toString().padStart(6, "0").replace(/0+$/, "");
+    return frac ? `${whole}.${frac}` : `${whole}`;
   }
 
   /** Account nonce, the value to set on the next transaction you build. */
   async nonce(address) {
     const account = await this.getAccount(address);
-    return Number(account.nonce);
+    return BigInt(account.nonce);
   }
 
   /**
@@ -131,7 +142,7 @@ export class Gateway {
     const start = Date.now();
     for (;;) {
       const tx = await this.getTransaction(hash).catch(() => null);
-      if (tx && tx.hash) return tx;
+      if (tx && tx.tx_id) return tx;
       if (Date.now() - start > timeoutMs) throw new Error("Timed out waiting for the transaction");
       await new Promise((r) => setTimeout(r, intervalMs));
     }

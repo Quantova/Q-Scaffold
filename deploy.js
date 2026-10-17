@@ -15,7 +15,7 @@
  *
  * Signing and key management are done with QCore.js, the Quantova SDK published
  * on npm as @quantovainc/qcore. Signatures are ML-DSA-65. The deployer key is
- * read from QUANTOVA_DEPLOYER_KEY in the environment. Never commit a real key.
+ * read from the file named by QUANTOVA_DEPLOYER_KEY_FILE, readable only by its owner. Never commit a real key.
  * Use a testnet key funded from the faucet. See deploying.md.
  */
 
@@ -33,10 +33,15 @@ async function main() {
   const params = await gateway.chainParams();
   console.log(`Deploying to chain ${params.chain_id}`);
 
-  const deployerKey = process.env.QUANTOVA_DEPLOYER_KEY;
-  if (!deployerKey) {
-    throw new Error("Set QUANTOVA_DEPLOYER_KEY to a testnet key funded from the faucet.");
+  const keyFile = process.env.QUANTOVA_DEPLOYER_KEY_FILE;
+  if (!keyFile) {
+    throw new Error("Set QUANTOVA_DEPLOYER_KEY_FILE to a file holding a testnet key funded from the faucet.");
   }
+  const keyStat = fs.lstatSync(keyFile);
+  if (!keyStat.isFile() || (keyStat.mode & 0o077) !== 0) {
+    throw new Error("The deployer key file must be a regular file readable only by its owner, chmod 600.");
+  }
+  const deployerKey = fs.readFileSync(keyFile, "utf8").trim();
 
   if (!fs.existsSync(CONTAINER_PATH)) {
     throw new Error(
@@ -55,7 +60,7 @@ async function main() {
     nonce: deployerAddress ? await gateway.nonce(deployerAddress) : 0,
     chain_id: params.chain_id,
     container: container.toString("base64"),
-    args: { name: "Example", symbol: "EXA", initial_supply: "1000000000000" },
+    args: { owner: deployerAddress, initial_supply: "1000000000000" },
   };
 
   // Sign locally with the ML-DSA-65 deployer key using the QCore.js keyring.

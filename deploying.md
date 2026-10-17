@@ -14,7 +14,7 @@ Point COMPILED_CONTAINER_PATH at the resulting container. The default is `./buil
 
 ## Fund a deployer
 
-Set QUANTOVA_DEPLOYER_KEY to a testnet key funded from the faucet. Never commit a real key. Keep it out of the repository.
+Set QUANTOVA_DEPLOYER_KEY_FILE to a file that holds a testnet key funded from the faucet, and make it readable only by you with chmod 600. The key is never read from the environment, so child processes, crash reports and CI logs cannot capture it. Never commit a real key. Keep it out of the repository.
 
 ## Deploy
 
