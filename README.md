@@ -2,7 +2,7 @@
 
 A minimal starter template for building on Quantova, a post quantum Layer 1 blockchain. Use this template to scaffold a project that reads chain state, deploys a contract to the Quantova Virtual Machine, and sends signed transactions through the gateway. It targets the testnet today.
 
-Quantova's cryptography, virtual machine, contract language, and consensus are built on the NIST post quantum standards, so the keys, signatures, finality, and randomness that secure the network are designed to withstand both classical and quantum attack. Signatures use ML-DSA-65 and key exchange uses ML-KEM-768. Quantova is at the testnet stage and has not yet completed external audit.
+Quantova's cryptography, virtual machine, contract language, and consensus are built on the NIST post quantum standards, so the keys, signatures, finality, and randomness that secure the network are designed to withstand both classical and quantum attack. Signatures use ML-DSA-65 and key exchange uses ML-KEM-768.
 
 ## What this template shows
 
@@ -45,7 +45,7 @@ The gateway is an HTTP POST to /v1/<method> with a flat JSON body. The methods a
 
 ## The SDK
 
-The client SDK is the QCore family. QCore.rs is the Rust core. QCore.js is published on npm as @quantovainc/qcore. QCore.py is the Python binding. Use QCore.js for key management and for signing transactions with ML-DSA-65. This template pins @quantovainc/qcore 0.6.1 exactly, with a lockfile.
+The client SDK is the QCore family. QCore.rs is the Rust core. QCore.js is published on npm as @quantovainc/qcore. QCore.py is the Python binding. Use QCore.js for key management and for signing transactions with ML-DSA-65. This template pins @quantovainc/qcore 0.7.0 exactly, with a lockfile.
 
 ## Conventions this template follows
 
