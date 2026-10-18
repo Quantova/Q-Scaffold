@@ -1,0 +1,65 @@
+# Copyright 2026 Quantova Inc
+# SPDX-License-Identifier: Apache-2.0 OR MIT
+name: checks
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  secrets:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: install gitleaks
+        run: |
+          set -euo pipefail
+          ver=8.30.1
+          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${ver}/gitleaks_${ver}_linux_x64.tar.gz" -o "$RUNNER_TEMP/gl.tgz"
+          echo "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb  $RUNNER_TEMP/gl.tgz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/gl.tgz" -C "$RUNNER_TEMP" gitleaks
+          install -m 0755 "$RUNNER_TEMP/gitleaks" /usr/local/bin/gitleaks
+      - name: secret scan over full history
+        run: |
+          set -euo pipefail
+          cat > "$RUNNER_TEMP/gitleaks.toml" <<'TOML'
+          title = "quantova secret scan"
+          [extend]
+          useDefault = true
+          [allowlist]
+          description = "public, example, and checksum data that is not a secret"
+          paths = [
+            '''(^|/)Cargo\.lock$''',
+            '''(^|/)package-lock\.json$''',
+          ]
+          regexes = [
+            '''YOUR_[A-Z0-9_]+''',
+            '''^[Qq]1[0-9A-Za-z]{25,}$''',
+          ]
+          TOML
+          gitleaks detect --source . --no-banner --redact --config "$RUNNER_TEMP/gitleaks.toml"
+  syntax:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24
+      - name: install
+        run: npm ci --ignore-scripts
+      - name: advisories
+        run: npm audit --omit=dev --audit-level=high
+      - name: syntax
+        run: for f in client.js deploy.js interact.js; do node --check "$f"; done
