@@ -29,14 +29,14 @@ export QUANTOVA_GATEWAY="http://127.0.0.1:8645"
 npm run interact
 ```
 
-Set QUANTOVA_GATEWAY to your gateway endpoint. The current testnet gateway URL is listed in the developer documentation. A local node serves the gateway on port 8645 by default.
+Set QUANTOVA_GATEWAY to your gateway endpoint. The current testnet gateway URL is listed in the developer documentation. A local node serves the gateway on port 8645 by default. Transactions are signed for the testnet Q-test-net-01 unless QUANTOVA_CHAIN names another chain.
 
 ## What is inside
 
-1. `client.js` is a dependency light client over the gateway. Every call is an HTTP POST to /v1/<method> with a flat JSON body.
+1. `client.js` is a small gateway client built on the QCore.js Client, so every request goes through its transport checks. Every call is an HTTP POST to /v1/<method> with a flat JSON body.
 2. `interact.js` reads node info, the chain head, chain parameters, supply, and an optional account balance.
 3. `ExampleQAsset.quanta` is a QAsset fungible token written in Quanta.
-4. `deploy.js` builds a deploy transaction, signs it with QCore.js, and submits it to the gateway.
+4. `deploy.js` builds a deploy transaction from the compiled contract, signs it with QCore.js, and submits it to the gateway once QUANTOVA_SUBMIT is set to yes.
 5. `getting-started.md`, `interacting.md`, `deploying.md`, and `project-structure.md` are the guides.
 
 ## The gateway
@@ -45,7 +45,7 @@ The gateway is an HTTP POST to /v1/<method> with a flat JSON body. The methods a
 
 ## The SDK
 
-The client SDK is the QCore family. QCore.rs is the Rust core. QCore.js is published on npm as @quantovainc/qcore. QCore.py is the Python binding. Use QCore.js for key management and for signing transactions with ML-DSA-65.
+The client SDK is the QCore family. QCore.rs is the Rust core. QCore.js is published on npm as @quantovainc/qcore. QCore.py is the Python binding. Use QCore.js for key management and for signing transactions with ML-DSA-65. This template pins @quantovainc/qcore 0.6.1 exactly, with a lockfile.
 
 ## Conventions this template follows
 

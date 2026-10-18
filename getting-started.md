@@ -24,7 +24,7 @@ Set the gateway endpoint in your shell or in a local env file.
 export QUANTOVA_GATEWAY="http://127.0.0.1:8645"
 ```
 
-Set QUANTOVA_GATEWAY to your gateway endpoint. The current testnet gateway URL is listed in the developer documentation. A local node serves the gateway on port 8645 by default. Optionally set QUANTOVA_ADDRESS to a Q1 address to print its balance, and set QUANTOVA_DEPLOYER_KEY only when you are ready to deploy, using a testnet key.
+Set QUANTOVA_GATEWAY to your gateway endpoint. The current testnet gateway URL is listed in the developer documentation. A local node serves the gateway on port 8645 by default. Optionally set QUANTOVA_ADDRESS to a Q1 address to print its balance, and set QUANTOVA_DEPLOYER_KEY_FILE only when you are ready to deploy, naming a file that holds a testnet key and is readable only by you.
 
 ## Get testnet funds
 

@@ -1,149 +1,134 @@
 // Copyright 2026 Quantova Inc
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-/**
- * Quantova gateway client.
- *
- * A small, dependency light wrapper over the Quantova gateway. Every call is an
- * HTTP POST to /v1/<method> with a flat JSON body, and the response is flat JSON.
- * Account addresses are Q1 bech32m strings written with a capital Q. Balances and
- * amounts are denominated in Quon, the base unit of QTOV, where one QTOV is one
- * million Quon.
- *
- * For signing and key management use the QCore.js SDK, published on npm as
- * @quantovainc/qcore. This file covers the read and submit surface of the gateway.
- * See interacting.md for the full method list.
- */
+import { Client, Network, core } from "@quantovainc/qcore";
 
-const DEFAULT_GATEWAY = process.env.QUANTOVA_GATEWAY || "https://rpc-testnet.quantova.org";
+const TESTNET = Network.testnet();
+const DEFAULT_GATEWAY = process.env.QUANTOVA_GATEWAY || TESTNET.rpcUrl;
 const TIMEOUT_MS = 15000;
 const RESPONSE_MAX = 8 * 1024 * 1024;
 
-/** One QTOV is one million Quon. */
 export const QUON_PER_QTOV = 1_000_000n;
 
-export class Gateway {
-  constructor(baseUrl) {
-    const target = baseUrl || DEFAULT_GATEWAY;
-    const url = new URL(target);
-    const local = ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
-    if (url.protocol !== "https:" && !(url.protocol === "http:" && local)) {
-      throw new Error("the gateway must be reached over https, plain http is allowed only to this machine");
+function chainOf(options) {
+  const named = options.expectedChainId || process.env.QUANTOVA_CHAIN;
+  return typeof named === "string" && named.length > 0 ? named : TESTNET.chainId;
+}
+
+function wholeNumber(value, label) {
+  const text = typeof value === "number" && Number.isSafeInteger(value) ? String(value) : value;
+  if (typeof text !== "string" || !/^(0|[1-9][0-9]*)$/.test(text)) throw new Error(`the gateway reported a ${label} that is not a whole number`);
+  return BigInt(text);
+}
+
+async function readBounded(res) {
+  if (!res.body) return "";
+  const reader = res.body.getReader();
+  const chunks = [];
+  let size = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.length;
+    if (size > RESPONSE_MAX) {
+      await reader.cancel();
+      throw new Error("the gateway sent more than 8 MiB");
     }
-    this.baseUrl = target.replace(/\/+$/, "");
+    chunks.push(value);
+  }
+  return Buffer.concat(chunks).toString("utf8");
+}
+
+export class Gateway {
+  constructor(baseUrl, options = {}) {
+    const target = (baseUrl || DEFAULT_GATEWAY).replace(/\/+$/, "");
+    const network = target === TESTNET.rpcUrl ? TESTNET : undefined;
+    this.fetch = options.fetch || ((url, init) => fetch(url, init));
+    this.client = new Client(target, { network, expectedChainId: chainOf(options), fetch: this.fetch, addressBook: options.addressBook });
+    this.baseUrl = this.client.base;
   }
 
-  /** Low level call. POST /v1/<method> with a flat JSON body. */
-  async post(method, body = {}) {
-    const res = await fetch(`${this.baseUrl}/v1/${method}`, {
+  async read(method) {
+    const res = await this.fetch(`${this.baseUrl}/v1/${method}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
+      body: "{}",
       signal: AbortSignal.timeout(TIMEOUT_MS),
+      redirect: "error",
     });
-    if (!res.ok) throw new Error(`gateway ${method} returned HTTP ${res.status}`);
-    const text = await res.text();
-    if (text.length > RESPONSE_MAX) throw new Error(`gateway ${method} returned too much data`);
-    const data = JSON.parse(text);
-    if (data && data.error) throw new Error(`gateway ${method} error ${data.error}`);
-    return data;
+    const text = await readBounded(res);
+    if (res.status !== 200) throw new Error(`gateway ${method} returned HTTP ${res.status}`);
+    core.checkGatewayJson(text);
+    return JSON.parse(text);
   }
 
-  // read methods
-
-  /** Node identity, software version, and network name. */
   nodeInfo() {
-    return this.post("node_info");
+    return this.client.nodeInfo();
   }
 
-  /** The current chain head, height and finalized status. */
   head() {
-    return this.post("head");
+    return this.client.head();
   }
 
-  /** The active QORUS committee for the current view. */
   validators() {
-    return this.post("validators");
+    return this.read("validators");
   }
 
-  /** Chain parameters, including the chain id used when signing. */
   chainParams() {
-    return this.post("chain_params");
+    return this.read("chain_params");
   }
 
-  /** Account record for a Q1 address, including balance and nonce. */
-  getAccount(address) {
-    return this.post("get_account", { address });
-  }
-
-  /** A transaction by its hash. */
-  getTransaction(txId) {
-    return this.post("get_transaction", { tx_id: txId });
-  }
-
-  /** A block by height or by hash. Pass { height } or { hash }. */
-  getBlock(ref) {
-    return this.post("get_block", ref);
-  }
-
-  /** Total and circulating supply, denominated in Quon. */
   supply() {
-    return this.post("supply");
+    return this.read("supply");
   }
 
-  /** The deployed container at a contract address. */
+  getAccount(address) {
+    return this.client.account(address);
+  }
+
+  getTransaction(txId) {
+    return this.client.transaction(txId);
+  }
+
+  getBlock(height) {
+    return this.client.block(height);
+  }
+
   getContainer(address) {
-    return this.post("get_container", { address });
+    return this.client.container(address);
   }
 
-  /** A storage slot of a container. */
-  getStorage(address, key) {
-    return this.post("get_storage", { address, key });
+  getStorage(address) {
+    return this.client.storage(address);
   }
 
-  /** Emitted events matching a filter. */
-  getEvents(filter = {}) {
-    return this.post("get_events", filter);
+  getEvents(height) {
+    return this.client.events(height);
   }
 
-  // submit
-
-  /**
-   * Submit an already signed transaction produced by QCore.js. The signed
-   * payload carries an ML-DSA-65 signature. Returns the accepted transaction hash.
-   */
-  submitTransaction(signedTransaction) {
-    return this.post("submit_transaction", { transaction: signedTransaction });
+  submitTransaction(txHex) {
+    return this.client.submit(txHex);
   }
 
-  // convenience
-
-  /** Balance of a Q1 address in QTOV, converted from Quon. */
   async balanceQTOV(address) {
     const account = await this.getAccount(address);
-    const quon = BigInt(account.balance);
+    const quon = wholeNumber(account.balance, "balance");
     const whole = quon / QUON_PER_QTOV;
     const frac = (quon % QUON_PER_QTOV).toString().padStart(6, "0").replace(/0+$/, "");
     return frac ? `${whole}.${frac}` : `${whole}`;
   }
 
-  /** Account nonce, the value to set on the next transaction you build. */
   async nonce(address) {
     const account = await this.getAccount(address);
-    return BigInt(account.nonce);
+    return wholeNumber(account.nonce, "nonce");
   }
 
-  /**
-   * Poll get_transaction until the transaction is recorded, then return it.
-   * A recorded transaction is included. Confirm QORUS finality before treating
-   * value as settled. See interacting.md.
-   */
-  async waitForTransaction(hash, { intervalMs = 1000, timeoutMs = 60000 } = {}) {
+  async waitForTransaction(txId, { intervalMs = 1000, timeoutMs = 60000 } = {}) {
     const start = Date.now();
     for (;;) {
-      const tx = await this.getTransaction(hash).catch(() => null);
-      if (tx && tx.tx_id) return tx;
-      if (Date.now() - start > timeoutMs) throw new Error("Timed out waiting for the transaction");
+      const tx = await this.getTransaction(txId).catch(() => null);
+      if (tx && tx.tx_id === txId && Number.isSafeInteger(tx.height)) return tx;
+      if (Date.now() - start > timeoutMs) throw new Error("timed out waiting for the transaction");
       await new Promise((r) => setTimeout(r, intervalMs));
     }
   }

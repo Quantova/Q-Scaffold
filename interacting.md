@@ -9,9 +9,9 @@ import { Gateway } from "./client.js";
 
 const gateway = new Gateway(process.env.QUANTOVA_GATEWAY);
 
-const head = await gateway.head();                 // chain head and height
-const params = await gateway.chainParams();        // chain id and parameters
-const balance = await gateway.balanceQTOV("Q1q9k...a91b"); // QTOV
+const head = await gateway.head();
+const params = await gateway.chainParams();
+const balance = await gateway.balanceQTOV("Q1q9k...a91b");
 ```
 
 A few things to keep in mind.
@@ -22,18 +22,19 @@ A few things to keep in mind.
 
 ## Sending a transaction
 
-The path is sign locally, then submit.
+The path is sign locally, then submit. The QCore.js Client behind `gateway.client` does both.
 
-1. Build the payload with the account nonce from `nonce`, the chain id from `chainParams`, and the fee and value in Quon.
-2. Sign it with the account ML-DSA-65 key using the QCore.js keyring.
-3. Submit the signed payload with `submitTransaction`, then poll for the record.
+1. It reads the chain id, the head and the fee from `node_info` and the account nonce from `get_account`.
+2. It signs with the account ML-DSA-65 key, bounds the validity of the transaction by the chain head and refuses a fee above the ceiling you pass.
+3. It submits the signed transaction with `submit_transaction`, and you poll for the record.
 
 ```js
 const nonce = await gateway.nonce(myAddress);
-// const signed = await account.signTransaction({ to, value, nonce, chainId });
-const { hash } = await gateway.submitTransaction(signed);
-const recorded = await gateway.waitForTransaction(hash);
+const { signed, outcome } = await gateway.client.transfer(seed, 0, to, "1000000", "2000", nonce);
+const recorded = await gateway.waitForTransaction(signed.tx_id);
 ```
+
+The amount and the fee ceiling are whole numbers of Quon written as strings. The last argument is the nonce you expect, which must be the nonce the gateway reports.
 
 ## Finality
 
@@ -50,10 +51,10 @@ The gateway is an HTTP POST to /v1/<method> with a flat JSON body.
 5. `get_account` returns an account record, including balance in Quon and nonce.
 6. `get_transaction` returns a transaction by hash.
 7. `submit_transaction` submits a signed transaction and returns the accepted hash.
-8. `get_block` returns a block by height or by hash.
+8. `get_block` returns a block by height.
 9. `supply` returns total and circulating supply in Quon.
 10. `get_container` returns the deployed container at a contract address.
-11. `get_storage` returns a storage slot of a container.
-12. `get_events` returns emitted events matching a filter.
+11. `get_storage` returns the storage slots of a container.
+12. `get_events` returns the events emitted at a height.
 
 The full reference is in the developer documentation.
