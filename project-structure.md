@@ -10,6 +10,8 @@ What every file in the template is for.
 ├── interact.js               Read node info, head, params, supply, balance
 ├── deploy.js                 Build, sign, and submit a QVM container deploy
 ├── ExampleQAsset.quanta      Example QAsset fungible token in Quanta
+├── finality-pin.json         Genesis hash and validator rosters you trust
+├── .gitignore                Keeps keys, seeds, env files and build output out of git
 ├── getting-started.md        Toolchain, install, configure, first read
 ├── interacting.md            Read state and send signed transactions
 ├── deploying.md              Compile and deploy the example QAsset
@@ -22,6 +24,8 @@ What every file in the template is for.
 2. `interact.js` is a read only smoke test that prints chain state.
 3. `deploy.js` builds the deploy from the compiled contract and signs it with the QCore.js Client using an ML-DSA-65 key.
 4. `ExampleQAsset.quanta` is the contract you compile to a QVM container and deploy.
+5. `finality-pin.json` is read by `client.js` when `deploy.js` proves a deployment final with the QCore.js Client.
+6. `~/.quantova/deploy-sessions` holds the session file `deploy.js` writes before it signs, so a rerun after a crash checks the earlier attempt instead of paying twice.
 
 ## Where the SDK comes in
 

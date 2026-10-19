@@ -20,6 +20,13 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24
+      - name: no key or seed files tracked
+        run: node .github/checks/tracked-files.mjs
+      - name: seed scanner finds every planted shape
+        run: node .github/checks/tracked-files.mjs --self-test
       - name: install gitleaks
         run: |
           set -euo pipefail
@@ -35,15 +42,74 @@ jobs:
           title = "quantova secret scan"
           [extend]
           useDefault = true
+          [[rules]]
+          id = "quantova-hex-seed"
+          description = "32 bytes written as 64 hex characters, the shape of a seed"
+          regex = '''(?:^|[^0-9A-Fa-f])(sha256[:=])?(?:0[xX])?([0-9A-Fa-f]{64})(?:[^0-9A-Fa-f]|$)'''
+          secretGroup = 2
+          [[rules.allowlists]]
+          description = "a digest labelled as sha256"
+          regexTarget = "match"
+          regexes = ['''sha256[:=][0-9A-Fa-f]{64}''']
+          [[rules.allowlists]]
+          description = "a checksum line handed to sha256sum"
+          regexTarget = "line"
+          regexes = ['''^\s*echo "[0-9a-f]{64}  \$RUNNER_TEMP/[A-Za-z0-9._-]+" \| sha256sum -c -\s*$''']
+          [[rules.allowlists]]
+          description = "a validator sortition root in a finality pin"
+          condition = "AND"
+          paths = ['''^finality-pin\.json$''', '''^examples/finality-pin\.json$''']
+          regexTarget = "line"
+          regexes = ['''^\s*"root":\s*"[0-9a-f]{64}",?\s*$''']
+          [[rules]]
+          id = "quantova-hex-halves"
+          description = "64 hex characters split over neighbouring lines"
+          regex = '''(\b[0-9A-Fa-f]{24,39}\b[^\n]{0,40}\n[^\n]{0,40}?\b[0-9A-Fa-f]{24,39}\b|(?:\b[0-9A-Fa-f]{16}\b[^\n0-9A-Fa-f]{0,24}\n[^\n0-9A-Fa-f]{0,24}){3}\b[0-9A-Fa-f]{16}\b)'''
+          secretGroup = 1
+          [[rules]]
+          id = "quantova-hex-bytes"
+          description = "32 bytes written as separated hex pairs, as od, colons, commas, 0x or C escapes print them"
+          regex = '''((?:\b(?:0[xX])?[0-9A-Fa-f]{2}(?:[ \t:,;-]{1,3}|[ \t,]*\n[ \t]*(?:[0-7]{7,8}[ \t]+)?)){31}\b(?:0[xX])?[0-9A-Fa-f]{2}\b|(?:\\x[0-9A-Fa-f]{2}){32})'''
+          secretGroup = 1
+          [[rules]]
+          id = "quantova-decimal-bytes"
+          description = "a list of exactly 32 byte values"
+          regex = '''\[\s*((?:(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])\s*,\s*){31}(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9]))\s*\]'''
+          secretGroup = 1
+          [[rules]]
+          id = "quantova-base64-seed"
+          description = "32 bytes written in base64 or base64url, padded or not, the shape of a seed"
+          regex = '''(?:^|[^A-Za-z0-9+/_-])((?:[A-Za-z0-9+/]{42}|[A-Za-z0-9_-]{42})[AEIMQUYcgkosw048]=?)(?:[^A-Za-z0-9+/=_-]|$)'''
+          secretGroup = 1
+          [[rules.allowlists]]
+          description = "a single case word, not the mixed case of a seed"
+          regexes = ['''^[A-Z0-9_+/-]+=?$''', '''^[a-z0-9_+/-]+=?$''']
+          [[rules]]
+          id = "quantova-mnemonic"
+          description = "twelve or more short words in a row on a line, the shape of a recovery phrase"
+          regex = '''(?im)(?:^|[\s"'`=:(\[,])((?:[a-z]{3,8}[ \t]+){11,24}[a-z]{3,8})[ \t"'`,;)\]]*$'''
+          secretGroup = 1
+          [[rules]]
+          id = "quantova-mnemonic-block"
+          description = "three or more lines of only short words, the shape of a recovery phrase written a few words per line"
+          regex = '''(?im)((?:^[ \t]*(?:[a-z]{3,8}[ \t]+){2,7}[a-z]{3,8}[ \t]*\n){3,})'''
+          secretGroup = 1
+          [[rules]]
+          id = "quantova-mnemonic-lines"
+          description = "twelve or more lines of one short word each, the shape of a recovery phrase"
+          regex = '''(?im)((?:^[ \t]*(?:[0-9]{1,2}[.)][ \t]*)?["']?[a-z]{3,8}["']?,?[ \t]*\n){12})'''
+          secretGroup = 1
           [allowlist]
-          description = "public, example, and checksum data that is not a secret"
+          description = "labelled test vectors, the exact shape of this file is checked by .github/checks/tracked-files.mjs"
           paths = [
-            '''(^|/)Cargo\.lock$''',
-            '''(^|/)package-lock\.json$''',
+            '''^labs/vectors/offline-vectors\.json$''',
           ]
           regexes = [
             '''YOUR_[A-Z0-9_]+''',
             '''^[Qq]1[0-9A-Za-z]{25,}$''',
+            '''^a7ffc6f8bf1ed76651c14756a061d662f580ff4de43b49fa82d80a4b80f8434a$''',
+            '''^3a985da74fe225b2045c172d6bd390bd855f086e3e9d525b46bfe24511431532$''',
+            '''^ca91e093bb8de33e90db52d7c89876597d14760703793ea7211929e73e613062$''',
           ]
           TOML
           gitleaks detect --source . --no-banner --redact --config "$RUNNER_TEMP/gitleaks.toml"
@@ -62,4 +128,58 @@ jobs:
       - name: advisories
         run: npm audit --omit=dev --audit-level=high
       - name: syntax
-        run: for f in client.js deploy.js interact.js; do node --check "$f"; done
+        run: |
+          for f in client.js deploy.js interact.js .github/checks/*.mjs; do node --check "$f"; done
+          node .github/checks/tracked-files.mjs --self-test
+      - name: offline behaviour
+        env:
+          QUANTOVA_GATEWAY: http://127.0.0.1:9
+        run: |
+          set -uo pipefail
+          t="$RUNNER_TEMP/offline"
+          mkdir -p "$t"
+          refuses() {
+            want="$1"
+            shift
+            if out=$(env "$@" node deploy.js 2>&1); then
+              echo "deploy.js succeeded with $*"
+              exit 1
+            fi
+            if printf '%s' "$out" | LC_ALL=C grep -q $'[\x01-\x09\x0b-\x1f\x7f]'; then
+              echo "deploy.js printed a control character"
+              exit 1
+            fi
+            printf '%s\n' "$out" | grep -qF -- "$want" || { echo "expected '$want' but got $out"; exit 1; }
+          }
+          printf '{"ok":true,"contracts":[{"name":"QAsset","container":"00","deploy_params":[]}]}' > "$t/compiled.json"
+          head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n' > "$t/owner.key"
+          echo >> "$t/owner.key"
+          chmod 600 "$t/owner.key"
+          cp "$t/owner.key" "$t/loose.key"
+          chmod 644 "$t/loose.key"
+          printf 'zz%062d\n' 0 > "$t/bad.key"
+          chmod 600 "$t/bad.key"
+          ln -sf "$t/owner.key" "$t/link.key"
+          refuses "whole number written in decimal digits" COMPILED_CONTRACT_PATH="$t/compiled.json" QUANTOVA_DEPLOYER_KEY_FILE="$t/owner.key" QUANTOVA_MAX_FEE_QUON=1e9
+          refuses "Compiled contract not found" COMPILED_CONTRACT_PATH="$t/"$'\e[2K\e]0;x\a'"missing.json"
+          refuses "QUANTOVA_DEPLOYER_KEY_FILE" COMPILED_CONTRACT_PATH="$t/compiled.json" QUANTOVA_DEPLOYER_KEY="$(cat "$t/owner.key")"
+          refuses "chmod 600" COMPILED_CONTRACT_PATH="$t/compiled.json" QUANTOVA_DEPLOYER_KEY_FILE="$t/loose.key"
+          refuses "chmod 600" COMPILED_CONTRACT_PATH="$t/compiled.json" QUANTOVA_DEPLOYER_KEY_FILE="$t/link.key"
+          refuses "64 lowercase hex characters" COMPILED_CONTRACT_PATH="$t/compiled.json" QUANTOVA_DEPLOYER_KEY_FILE="$t/bad.key"
+          refuses "deploy failed" COMPILED_CONTRACT_PATH="$t/compiled.json" QUANTOVA_DEPLOYER_KEY_FILE="$t/owner.key"
+          if out=$(QUANTOVA_GATEWAY=http://192.0.2.1:8645 node interact.js 2>&1); then
+            echo "interact.js accepted plaintext http to a remote gateway"
+            exit 1
+          fi
+          printf '%s\n' "$out" | grep -q "refusing plaintext http" || { echo "expected a plaintext refusal but got $out"; exit 1; }
+          env -u CHECK_QCORE node .github/checks/run.mjs || exit 1
+          proof="${CHECK_QCORE:-}"
+          if [ -z "$proof" ] && ! node -e 'process.exit(require("./node_modules/@quantovainc/qcore/package.json").version.split(".").map(Number).reduce((a, n) => a * 1000 + n, 0) >= 9000 ? 0 : 1)'; then
+            proof="$RUNNER_TEMP/qcore-js"
+            git clone --quiet https://github.com/Quantova/QCore.js "$proof" || exit 1
+            git -C "$proof" checkout --quiet 6b3ce72a806f76dc2825d951eb83cc4426705c38 || exit 1
+            test "$(git -C "$proof" rev-parse HEAD)" = 6b3ce72a806f76dc2825d951eb83cc4426705c38 || exit 1
+          fi
+          if [ -n "$proof" ]; then
+            CHECK_QCORE="$proof" node .github/checks/run.mjs || exit 1
+          fi

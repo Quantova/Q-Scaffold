@@ -1,6 +1,6 @@
 # Quantova Dev Base Template
 
-A minimal starter template for building on Quantova, a post quantum Layer 1 blockchain. Use this template to scaffold a project that reads chain state, deploys a contract to the Quantova Virtual Machine, and sends signed transactions through the gateway. It targets the testnet today.
+A minimal starter template for building on Quantova, a post quantum Layer 1 blockchain. Use this template to scaffold a project that reads chain state, deploys a contract to the Quantova Virtual Machine, and sends signed transactions through the gateway. It targets the live Quantova network Q-test-net-01, whose native asset TQTOV is a test asset.
 
 Quantova's cryptography, virtual machine, contract language, and consensus are built on the NIST post quantum standards, so the keys, signatures, finality, and randomness that secure the network are designed to withstand both classical and quantum attack. Signatures use ML-DSA-65 and key exchange uses ML-KEM-768.
 
@@ -12,7 +12,7 @@ Quantova's cryptography, virtual machine, contract language, and consensus are b
 
 ## The stack in one paragraph
 
-The virtual machine is the QVM, which executes compiled containers on a deterministic register machine, with post quantum signature verification, hashing, and Merkle proof checking as native instructions. Consensus is QORUS. A committee is sampled by sortition each round to attest to a proposed block, and finality is recorded as a single aggregated certificate under ML-DSA-65 keys. The committee is bounded, so the work to finalize a block does not grow with the validator set. Cryptography is Q-Crypto, Quantova's implementation of the NIST post quantum standards, with ML-DSA-65 for signatures, ML-KEM-768 for key exchange, SLH-DSA, SHA-3 with SHAKE, and ChaCha20-Poly1305 for the transport channel. Addresses are Q1 bech32m strings written with a capital Q. The asset is QTOV and its base unit is the Quon, where one QTOV is one million Quon. The testnet asset is TQTOV. The contract language is Quanta, where assets are linear resources and authority is a capability, so whole classes of vulnerability are caught at compile time. The fungible standard is QAsset and the non fungible standard is QCollectible. The name service is QNS, with domains under a capital Q top level like Jeff.Q.
+The virtual machine is the QVM, which executes compiled containers on a deterministic register machine, with post quantum signature verification, hashing, and Merkle proof checking as native instructions. Consensus is QORUS. A committee is sampled by sortition each round to attest to a proposed block, and finality is recorded as a single aggregated certificate under ML-DSA-65 keys. The committee is bounded, so the work to finalize a block does not grow with the validator set. Cryptography is Q-Crypto, Quantova's implementation of the NIST post quantum standards, with ML-DSA-65 for signatures, ML-KEM-768 for key exchange, SLH-DSA, SHA-3 with SHAKE, and ChaCha20-Poly1305 for the transport channel. Addresses are Q1 bech32m strings written with a capital Q. The asset is QTOV and its base unit is the Quon, where one QTOV is one million Quon. On Q-test-net-01 the native asset is TQTOV, a test asset. The contract language is Quanta, where assets are linear resources and authority is a capability, so whole classes of vulnerability are caught at compile time. The fungible standard is QAsset and the non fungible standard is QCollectible. The name service is QNS, with domains under a capital Q top level like Jeff.Q.
 
 ## Quickstart
 
@@ -29,15 +29,17 @@ export QUANTOVA_GATEWAY="http://127.0.0.1:8645"
 npm run interact
 ```
 
-Set QUANTOVA_GATEWAY to your gateway endpoint. The current testnet gateway URL is listed in the developer documentation. A local node serves the gateway on port 8645 by default. Transactions are signed for the testnet Q-test-net-01 unless QUANTOVA_CHAIN names another chain.
+Set QUANTOVA_GATEWAY to your gateway endpoint. The gateway URL for the live network Q-test-net-01 is listed in the developer documentation. A local node serves the gateway on port 8645 by default. Transactions are signed for Q-test-net-01 unless QUANTOVA_CHAIN names another chain.
 
 ## What is inside
 
 1. `client.js` is a small gateway client built on the QCore.js Client, so every request goes through its transport checks. Every call is an HTTP POST to /v1/<method> with a flat JSON body.
 2. `interact.js` reads node info, the chain head, chain parameters, supply, and an optional account balance.
 3. `ExampleQAsset.quanta` is a QAsset fungible token written in Quanta.
-4. `deploy.js` builds a deploy transaction from the compiled contract, signs it with QCore.js, and submits it to the gateway once QUANTOVA_SUBMIT is set to yes.
-5. `getting-started.md`, `interacting.md`, `deploying.md`, and `project-structure.md` are the guides.
+4. `deploy.js` builds a deploy transaction from the compiled contract, signs it with QCore.js, submits it to the gateway once QUANTOVA_SUBMIT is set to yes, records the attempt in your own `~/.quantova` directory so a rerun never pays twice, and refuses to sign when it could not prove the deployment unless you pass `--accept-unconfirmed`.
+5. `finality-pin.json` holds the genesis hash and validator rosters you trust, which `deploy.js` uses to prove the deployment final. See `deploying.md`.
+6. `.gitignore` keeps `node_modules`, `build`, key and seed files and env files out of git.
+7. `getting-started.md`, `interacting.md`, `deploying.md`, and `project-structure.md` are the guides.
 
 ## The gateway
 
@@ -45,7 +47,7 @@ The gateway is an HTTP POST to /v1/<method> with a flat JSON body. The methods a
 
 ## The SDK
 
-The client SDK is the QCore family. QCore.rs is the Rust core. QCore.js is published on npm as @quantovainc/qcore. QCore.py is the Python binding. Use QCore.js for key management and for signing transactions with ML-DSA-65. This template pins @quantovainc/qcore 0.7.0 exactly, with a lockfile.
+The client SDK is the QCore family. QCore.rs is the Rust core. QCore.js is published on npm as @quantovainc/qcore. QCore.py is the Python binding. Use QCore.js for key management and for signing transactions with ML-DSA-65. This template pins @quantovainc/qcore 0.8.0 exactly, with a lockfile. Signing for Q-test-net-01 needs QCore.js 0.9.0 or later and the network genesis pinned in `finality-pin.json`, because the chain only accepts transactions signed over its genesis. With QCore.js 0.8.0 the scripts read the chain and sign for a local chain only.
 
 ## Conventions this template follows
 

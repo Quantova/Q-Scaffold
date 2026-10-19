@@ -10,6 +10,7 @@ contract QAsset {
     owner = deploy_params.owner;
     total_supply = deploy_params.initial_supply;
     balances.credit(deploy_params.owner, deploy_params.initial_supply);
+    emit Deployed(deploy_params.owner, deploy_params.initial_supply);
   }
   entry mint(order: MintOrder signed by owner)
     mints QAT
@@ -27,6 +28,7 @@ contract QAsset {
     balances.credit(to, amount);
     emit Transferred(caller, to, amount);
   }
+  event Deployed(owner: Q_Address, initial_supply: u128);
   event Minted(to: Q_Address, amount: u128);
   event Transferred(sender: Q_Address, to: Q_Address, amount: u128);
 }

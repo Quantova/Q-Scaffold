@@ -1,0 +1,9 @@
+node_modules/
+build/
+*.key
+*.seed
+.env
+.env.*
+*.[kK][eE][yY]
+*.[sS][eE][eE][dD]
+keys/

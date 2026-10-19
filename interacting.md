@@ -25,20 +25,27 @@ A few things to keep in mind.
 The path is sign locally, then submit. The QCore.js Client behind `gateway.client` does both.
 
 1. It reads the chain id, the head and the fee from `node_info` and the account nonce from `get_account`.
-2. It signs with the account ML-DSA-65 key, bounds the validity of the transaction by the chain head and refuses a fee above the ceiling you pass.
-3. It submits the signed transaction with `submit_transaction`, and you poll for the record.
+2. It signs with the account ML-DSA-65 key at the next nonce, bounds the validity of the transaction by the chain head and refuses a fee above the ceiling you pass.
+3. It submits the signed transaction with `submit_transaction`, and you wait until the gateway reports it finalised.
 
 ```js
-const nonce = await gateway.nonce(myAddress);
-const { signed, outcome } = await gateway.client.transfer(seed, 0, to, "1000000", "2000", nonce);
-const recorded = await gateway.waitForTransaction(signed.tx_id);
+const { signed, outcome } = await gateway.client.transfer(seed, 0, to, "1000000", "2000");
+if (outcome.verdict !== "accepted") throw new Error("the transfer was refused");
+const recorded = await gateway.waitForTransaction(outcome.tx_id || signed.tx_id);
+const proof = await gateway.confirm(signed.tx_id, recorded.height);
 ```
 
-The amount and the fee ceiling are whole numbers of Quon written as strings. The last argument is the nonce you expect, which must be the nonce the gateway reports.
+The amount and the fee ceiling are whole numbers of Quon written as strings. Pass no nonce for a normal send. The Client then picks the nonce itself and refuses to sign a second transaction for a nonce it already signed in this session, so one nonce never carries two signatures. Never read the nonce from the gateway and pass it back as the expected nonce, because that switches the guard off.
+
+The only time to pass an expected nonce is to replace a transaction that never landed. Record the nonce of each transaction you sign at the moment you sign it, and pass that recorded nonce as the last argument only when you deliberately sign a replacement for that same transaction. `gateway.client.saveSession()` returns the record of the nonces this session signed, and `gateway.client.restoreSession(state)` brings it back after a restart.
+
+`gateway.confirm` proves the transaction final against the genesis hash pinned in `finality-pin.json` and the roster pinned for the epoch of the block at the height you pass, as described in `deploying.md`. It returns null while no roster is pinned, and then the transaction is accepted but its finality is not confirmed. It throws when the pin holds no roster for that epoch or when the proof does not hold.
+
+Print gateway text through `printable` from `client.js`, which drops control, format, private use and default ignorable characters such as variation selectors, turns spaces and invisible filler characters into single spaces, keeps at most two stacked combining marks and caps the result at 96 characters, and check heights with `height`, which accepts only whole numbers. Signing for Q-test-net-01 needs QCore.js 0.9.0 or later and the network genesis pinned in `finality-pin.json`, and `gateway.requireSigning()` throws when they are missing.
 
 ## Finality
 
-A recorded transaction is included. QORUS gives deterministic finality, and a finalized block does not reorg. Treat value as settled only after the block that carries the transaction is finalized. For anything that moves funds, wait for finality before showing success.
+A recorded transaction is included. QORUS gives deterministic finality, and a finalized block does not reorg. Treat value as settled only after `gateway.confirm` returns a proof that the block carrying the transaction is finalized. For anything that moves funds, wait for that proof before showing success.
 
 ## Gateway methods
 
