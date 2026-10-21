@@ -47,7 +47,7 @@ The gateway is an HTTP POST to /v1/<method> with a flat JSON body. The methods a
 
 ## The SDK
 
-The client SDK is the QCore family. QCore.rs is the Rust core. QCore.js is published on npm as @quantovainc/qcore. QCore.py is the Python binding. Use QCore.js for key management and for signing transactions with ML-DSA-65. This template pins @quantovainc/qcore 0.9.1 exactly, with a lockfile. Signing for Q-test-net-01 also needs the network genesis pinned in `finality-pin.json`, because the chain only accepts transactions signed over its genesis.
+The client SDK is the QCore family. QCore.rs is the Rust core. QCore.js is published on npm as @quantovainc/qcore. QCore.py is the Python binding. Use QCore.js for key management and for signing transactions with ML-DSA-65. This template pins @quantovainc/qcore 0.10.0 exactly, with a lockfile. Signing for Q-test-net-01 also needs the network genesis pinned in `finality-pin.json`, because the chain only accepts transactions signed over its genesis.
 
 ## Conventions this template follows
 
