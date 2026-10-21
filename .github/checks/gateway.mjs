@@ -239,8 +239,8 @@ const server = http.createServer((req, res) => {
       case "node_info": {
         const shown = config.chainShown === undefined ? config.chain : config.chainShown;
         const genesisShown = config.genesisShown === undefined ? config.genesis : config.genesisShown;
-        if (config.headRaw !== undefined) return send(200, `{"chain_id":${JSON.stringify(shown)},"genesis_hash":"${genesisShown}","head_height":${config.headRaw},"fee":{"transfer_quon":"1000"}}`);
-        return send(200, { chain_id: shown, genesis_hash: genesisShown, head_height: head, asset: "TQTOV", fee: { transfer_quon: "1000" } });
+        if (config.headRaw !== undefined) return send(200, `{"chain_id":${JSON.stringify(shown)},"genesis_hash":"${genesisShown}","head_height":${config.headRaw},"denomination":"Quon","version":"check","fee":{"transfer_quon":"1000","deploy_fee_quon":"5000000","rate_micro_usd_per_qtov":"1000000","quon_per_qtov":"1000000"},"protocol":2}`);
+        return send(200, { chain_id: shown, genesis_hash: genesisShown, head_height: head, asset: "TQTOV", denomination: "Quon", version: "check", fee: { transfer_quon: "1000", deploy_fee_quon: "5000000", rate_micro_usd_per_qtov: "1000000", quon_per_qtov: "1000000" }, protocol: 2 });
       }
       case "head":
         return send(200, { height: head, block: bech32m("QBK", sha3(Buffer.from(`block ${head}`))), q_root: "00".repeat(32) });

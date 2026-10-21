@@ -10,7 +10,7 @@ import { Gateway, hasRoster, height, printable, readGuardedFile, readSeedFile, r
 const COMPILED_PATH = process.env.COMPILED_CONTRACT_PATH || "./build/ExampleQAsset.json";
 const CONTRACT_NAME = process.env.QUANTOVA_CONTRACT_NAME || "QAsset";
 const INITIAL_SUPPLY = process.env.QUANTOVA_INITIAL_SUPPLY || "1000000000000";
-const MAX_FEE_QUON = process.env.QUANTOVA_MAX_FEE_QUON || "20000000";
+const MAX_FEE_QUON = process.env.QUANTOVA_MAX_FEE_QUON || "5001000";
 const CHARSET = "qpzry9x8gf2tvdw0s3jn54khce6mua7l";
 const CONTEXT_BYTES = 120;
 const DEPLOY_BYTE_METER = 100;
@@ -237,7 +237,7 @@ async function main(held, opts) {
   const args = deployArgs(contract, { "deploy_params.owner": owner, "deploy_params.initial_supply": INITIAL_SUPPLY });
   const expected = deployedEvent(contract, owner);
   const meter = Math.min(MAX_METER, (contract.container.length / 2) * DEPLOY_BYTE_METER + GENESIS_METER);
-  const fee = core.vmCallFee(String(info.fee && info.fee.transfer_quon), meter);
+  const fee = core.vmCallFee(String(info.fee && info.fee.transfer_quon), meter) + BigInt(core.deployFeeQuon(JSON.stringify(info)));
   const containerHash = crypto.createHash("sha3-256").update(Buffer.from(contract.container, "hex")).digest("hex");
   const identity = { chain: gateway.chainId, genesis: /^[0-9a-f]{64}$/.test(info.genesis_hash) ? info.genesis_hash : "unknown", owner, container: containerHash };
   const file = sessionPath(gateway.chainId, owner, containerHash);
