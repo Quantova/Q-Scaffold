@@ -61,8 +61,8 @@ function compiled(name, events = true, container = crypto.randomBytes(64).toStri
     name: "QAsset",
     container,
     deploy_params: [
-      { key: "deploy_params.owner", offset: 120, width: 32 },
-      { key: "deploy_params.initial_supply", offset: 152, width: 16 },
+      { key: "deploy_params.owner", offset: 152, width: 32 },
+      { key: "deploy_params.initial_supply", offset: 184, width: 16 },
     ],
     events: events ? [{ name: "Deployed", signature: "Deployed(Q_Address,u128)", selector: SELECTOR }] : [],
   };
