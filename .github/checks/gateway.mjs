@@ -290,6 +290,9 @@ const server = http.createServer((req, res) => {
       }
       case "get_finality": {
         const tx = blocks.get(body.height);
+        if (!tx && !config.noProofs && Number.isSafeInteger(body.height) && body.height >= 0 && body.height <= head) {
+          return send(200, Object.assign({ height: body.height, chain_id: String(chainIdOf(config.chain)) }, certified(body.height, EMPTY_ROOT, EMPTY_ROOT)));
+        }
         if (!tx || !tx.final || config.noProofs) return missing();
         const certifiedEvent = tx.event && config.event === "unproven" ? Buffer.concat([tx.event, Buffer.from([0])]) : tx.event;
         const proof = certified(tx.height, leafHash(tx.bytes), certifiedEvent ? leafHash(certifiedEvent) : EMPTY_ROOT);

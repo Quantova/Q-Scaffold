@@ -11,6 +11,7 @@ const WORK = fs.mkdtempSync(path.join(os.tmpdir(), "scaffold-checks-"));
 const MODULES = process.env.CHECK_QCORE ? linkCore(process.env.CHECK_QCORE) : path.join(ROOT, "node_modules");
 const VERSION = JSON.parse(fs.readFileSync(path.join(MODULES, "@quantovainc", "qcore", "package.json"), "utf8")).version;
 const SIGNS_GENESIS = VERSION.split(".").map(Number).reduce((a, n) => a * 1000 + n, 0) >= 9000;
+const VERIFIES_HEAD = VERSION.split(".").map(Number).reduce((a, n) => a * 1000 + n, 0) >= 11000;
 const STATE = path.join(WORK, "state");
 const SELECTOR = "a19a5937";
 const UNSAFE = /[\u0000-\u0008\u000b-\u001f\u007f-\u009f\u00ad\u034f\u115f\u1160\u180b-\u180f\u200b-\u200f\u202a-\u202e\u2060-\u206f\u3164\ufe00-\ufe0f\ufeff\uffa0\u{e0000}-\u{e0fff}]|[\u0300-\u036f]{3}/u;
@@ -96,7 +97,7 @@ function run(dir, script, env, args = [], timeout = 120000, node = []) {
     cwd: dir,
     encoding: "utf8",
     timeout,
-    env: Object.assign({ PATH: process.env.PATH, HOME: process.env.HOME, QUANTOVA_STATE_DIR: STATE, QUANTOVA_GATEWAY: "http://127.0.0.1:9" }, env),
+    env: Object.assign({ PATH: process.env.PATH, HOME: process.env.HOME, QUANTOVA_STATE_DIR: STATE, QUANTOVA_GATEWAY: "http://127.0.0.1:9", QUANTOVA_GENESIS_SECS: "1700000000", QUANTOVA_BLOCKS_PER_SEC: "5" }, env),
   });
   const out = (r.stdout || "") + (r.stderr || "");
   check(`${script} ${args.join(" ")} prints no control, bidi or filler character`, !UNSAFE.test(out), out);
@@ -439,7 +440,8 @@ async function genesis() {
   r = run(BASE, "deploy.js", env(g.url, pinG), ACCEPT);
   s = await g.state();
   await g.stop();
-  if (SIGNS_GENESIS) check("a matching genesis pin signs when unconfirmed results are accepted", r.status === 0 && s.deploys === 1, r.out);
+  if (VERIFIES_HEAD) check("a genesis pin without a roster gets nothing signed on the public chain", r.status === 1 && s.submits === 0 && r.out.includes("must be verified against a trusted validator roster"), r.out);
+  else if (SIGNS_GENESIS) check("a matching genesis pin signs when unconfirmed results are accepted", r.status === 0 && s.deploys === 1, r.out);
   else check("a genesis pin on a core that cannot sign over it signs nothing even when unconfirmed results are accepted", r.status === 1 && s.submits === 0, r.out);
   g = await gateway({ chain: "Q-test-net-01", genesis: G });
   r = run(BASE, "deploy.js", { QUANTOVA_GATEWAY: g.url, COMPILED_CONTRACT_PATH: c, QUANTOVA_DEPLOYER_KEY_FILE: owner, QUANTOVA_SUBMIT: "yes" }, ACCEPT);

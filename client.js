@@ -342,8 +342,20 @@ export class Gateway {
       genesisHash: genesis || undefined,
       genesisSecs: this.chainId === NETWORK.chainId ? NETWORK.genesisSecs : clockSetting("QUANTOVA_GENESIS_SECS"),
       blocksPerSec: this.chainId === NETWORK.chainId ? NETWORK.blocksPerSec : clockSetting("QUANTOVA_BLOCKS_PER_SEC"),
+      epochLength: this.pin && this.pin.epochLength ? this.pin.epochLength : undefined,
     });
     this.client = new Client(target, { network, expectedChainId: this.chainId, fetch: this.fetch, addressBook: options.addressBook });
+    if (hasRoster(this.pin)) {
+      const readInfo = this.client.nodeInfo.bind(this.client);
+      this.client.nodeInfo = async () => {
+        const info = await readInfo();
+        const at = info && info.head_height;
+        if (Number.isSafeInteger(at) && at >= 0 && rosterKnown(this.pin, at)) {
+          this.client.trustRosterAt(this.pin.genesisHash, BigInt(at) / this.pin.epochLength, rosterFor(this.pin, at));
+        }
+        return info;
+      };
+    }
     const submit = this.client.submit.bind(this.client);
     this.client.submit = (txHex) => {
       if (this.onSubmit) this.onSubmit(txHex);
@@ -428,7 +440,7 @@ export class Gateway {
   }
 
   getTransaction(txId) {
-    return this.client.transaction(txId);
+    return this.read("get_transaction", { tx_id: txId });
   }
 
   getBlock(blockHeight) {
@@ -475,7 +487,7 @@ export class Gateway {
     const start = Date.now();
     for (;;) {
       const tx = await this.getTransaction(txId);
-      if (tx && tx.tx_id === txId && (tx.status === "finalised" || (tx.status === "unverified" && tx.reportedStatus === "finalised")) && Number.isSafeInteger(tx.height) && tx.height >= 0) return tx;
+      if (tx && tx.tx_id === txId && tx.status === "finalised" && Number.isSafeInteger(tx.height) && tx.height >= 0) return tx;
       if (Date.now() - start > timeoutMs) {
         throw new Error(`timed out waiting for ${printable(txId)} to be finalised, the gateway last reported ${printable(tx && tx.status)}`);
       }
@@ -491,7 +503,7 @@ export class Gateway {
     const pin = this.pin;
     if (!hasRoster(pin)) return null;
     const members = rosterFor(pin, height(blockHeight, "transaction height"));
-    const proof = await this.client.confirmTransaction(txId, pin.genesisHash, members);
+    const proof = await this.client.confirmInclusion(txId, pin.genesisHash, members, BigInt(blockHeight) / pin.epochLength);
     if (BigInt(proof.height) !== BigInt(blockHeight)) {
       throw new Error(`the gateway placed ${printable(txId)} at height ${blockHeight} but proved it at height ${proof.height}`);
     }
