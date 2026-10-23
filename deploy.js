@@ -283,7 +283,7 @@ async function main(held, opts) {
       } catch {
         known = null;
       }
-      if (known && known.tx_id === record.tx && (known.status === "pending" || known.status === "finalised")) await gateway.waitForTransaction(record.tx);
+      if (known && known.tx_id === record.tx && (known.status === "pending" || known.status === "finalised" || known.status === "unverified")) await gateway.waitForTransaction(record.tx);
     }
     const onChain = await gateway.containerAt(record.address);
     if (onChain === contract.container) {

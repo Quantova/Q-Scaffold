@@ -112,6 +112,13 @@ function wholeNumber(value, label) {
   return BigInt(text);
 }
 
+function clockSetting(name) {
+  const text = process.env[name];
+  if (text === undefined || text === "") return undefined;
+  if (!/^[1-9][0-9]{0,15}$/.test(text)) throw new Error(`${name} must be a positive whole number`);
+  return BigInt(text);
+}
+
 function nibble(c) {
   if (c >= 48 && c <= 57) return c - 48;
   if (c >= 97 && c <= 102) return c - 87;
@@ -333,6 +340,8 @@ export class Gateway {
       explorerUrl: NETWORK.explorerUrl,
       isMainnet: false,
       genesisHash: genesis || undefined,
+      genesisSecs: this.chainId === NETWORK.chainId ? NETWORK.genesisSecs : clockSetting("QUANTOVA_GENESIS_SECS"),
+      blocksPerSec: this.chainId === NETWORK.chainId ? NETWORK.blocksPerSec : clockSetting("QUANTOVA_BLOCKS_PER_SEC"),
     });
     this.client = new Client(target, { network, expectedChainId: this.chainId, fetch: this.fetch, addressBook: options.addressBook });
     const submit = this.client.submit.bind(this.client);
@@ -466,7 +475,7 @@ export class Gateway {
     const start = Date.now();
     for (;;) {
       const tx = await this.getTransaction(txId);
-      if (tx && tx.tx_id === txId && tx.status === "finalised" && Number.isSafeInteger(tx.height) && tx.height >= 0) return tx;
+      if (tx && tx.tx_id === txId && (tx.status === "finalised" || (tx.status === "unverified" && tx.reportedStatus === "finalised")) && Number.isSafeInteger(tx.height) && tx.height >= 0) return tx;
       if (Date.now() - start > timeoutMs) {
         throw new Error(`timed out waiting for ${printable(txId)} to be finalised, the gateway last reported ${printable(tx && tx.status)}`);
       }
