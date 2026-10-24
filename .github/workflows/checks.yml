@@ -110,6 +110,7 @@ jobs:
             '''^a7ffc6f8bf1ed76651c14756a061d662f580ff4de43b49fa82d80a4b80f8434a$''',
             '''^3a985da74fe225b2045c172d6bd390bd855f086e3e9d525b46bfe24511431532$''',
             '''^ca91e093bb8de33e90db52d7c89876597d14760703793ea7211929e73e613062$''',
+            '''^5f18d6fbd39e55152cbb3f7986d50cc52e436fe577d5a47307e092a761f6a4c9$''',
           ]
           TOML
           gitleaks detect --source . --no-banner --redact --config "$RUNNER_TEMP/gitleaks.toml"

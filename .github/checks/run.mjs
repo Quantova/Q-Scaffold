@@ -12,6 +12,8 @@ const MODULES = process.env.CHECK_QCORE ? linkCore(process.env.CHECK_QCORE) : pa
 const VERSION = JSON.parse(fs.readFileSync(path.join(MODULES, "@quantovainc", "qcore", "package.json"), "utf8")).version;
 const SIGNS_GENESIS = VERSION.split(".").map(Number).reduce((a, n) => a * 1000 + n, 0) >= 9000;
 const VERIFIES_HEAD = VERSION.split(".").map(Number).reduce((a, n) => a * 1000 + n, 0) >= 11000;
+const BUILT_IN_GENESIS = spawnSync(process.execPath, ["-e", "const n = require(process.argv[1]).Network.testnet(); process.stdout.write(n.genesisHash || '')", path.join(MODULES, "@quantovainc", "qcore")], { encoding: "utf8" }).stdout.trim();
+const TESTNET_GENESIS = /^[0-9a-f]{64}$/.test(BUILT_IN_GENESIS) ? BUILT_IN_GENESIS : "c3".repeat(32);
 const STATE = path.join(WORK, "state");
 const SELECTOR = "a19a5937";
 const UNSAFE = /[\u0000-\u0008\u000b-\u001f\u007f-\u009f\u00ad\u034f\u115f\u1160\u180b-\u180f\u200b-\u200f\u202a-\u202e\u2060-\u206f\u3164\ufe00-\ufe0f\ufeff\uffa0\u{e0000}-\u{e0fff}]|[\u0300-\u036f]{3}/u;
@@ -44,7 +46,8 @@ function project(pinText) {
   return dir;
 }
 
-const BASE = project();
+const SHIPPED = project();
+const BASE = project(JSON.stringify({ chain_id: "Q-test-net-01", genesis_hash: "", roster: [] }));
 
 function file(name, data, mode = 0o600) {
   const f = path.join(WORK, name);
@@ -183,7 +186,13 @@ async function offline() {
   const r2 = run(filled, "deploy.js", { COMPILED_CONTRACT_PATH: c, QUANTOVA_DEPLOYER_KEY_FILE: owner, QUANTOVA_CHAIN: "Q-local-1" });
   check("a filled default pin for another chain is refused", r2.status === 1 && r2.out.includes("is for chain Q-test-net-01"), r2.out);
   const empty = run(BASE, "deploy.js", { COMPILED_CONTRACT_PATH: c, QUANTOVA_DEPLOYER_KEY_FILE: owner, QUANTOVA_CHAIN: "Q-local-1" });
-  check("the shipped empty pin is ignored for another chain", empty.status === 1 && !empty.out.includes("is for chain"), empty.out);
+  check("an empty pin is ignored for another chain", empty.status === 1 && !empty.out.includes("is for chain"), empty.out);
+  const shipped = run(SHIPPED, "deploy.js", { COMPILED_CONTRACT_PATH: c, QUANTOVA_DEPLOYER_KEY_FILE: owner, QUANTOVA_CHAIN: "Q-local-1" });
+  check("the shipped testnet pin is refused for another chain", shipped.status === 1 && shipped.out.includes("is for chain Q-test-net-01"), shipped.out);
+  const pin = JSON.parse(fs.readFileSync(path.join(ROOT, "finality-pin.json"), "utf8"));
+  const commitment = spawnSync(process.execPath, ["-e", "const q = require(process.argv[1]); const n = q.Network.testnet(); const e = JSON.parse(process.argv[2]); process.stdout.write(JSON.stringify([n.genesisHash, n.rosterCommitment, q.core.rosterCommitment(BigInt(e.epoch), JSON.stringify(e.roster))]))", path.join(MODULES, "@quantovainc", "qcore"), JSON.stringify(pin.epochs[0])], { encoding: "utf8" }).stdout;
+  const [builtGenesis, builtRoster, shippedRoster] = JSON.parse(commitment || "[]");
+  check("the shipped pin names the genesis and roster QCore.js carries", pin.genesis_hash === builtGenesis && shippedRoster === builtRoster, commitment);
   const r3 = run(BASE, "deploy.js", { COMPILED_CONTRACT_PATH: c, QUANTOVA_DEPLOYER_KEY_FILE: owner, QUANTOVA_FINALITY_FILE: target });
   if (SIGNS_GENESIS) check("a genesis pin is accepted by a core that signs over it", !r3.out.includes("does not sign over a pinned genesis"), r3.out);
   else check("a genesis pin is refused by a core that cannot sign over it", r3.status === 1 && r3.out.includes("does not sign over a pinned genesis"), r3.out);
@@ -420,7 +429,7 @@ async function stale() {
 async function genesis() {
   const c = compiled("c.json");
   const owner = newKey("g.key");
-  const G = "c3".repeat(32);
+  const G = TESTNET_GENESIS;
   const env = (url, pin, more = {}) => Object.assign({ QUANTOVA_GATEWAY: url, COMPILED_CONTRACT_PATH: c, QUANTOVA_DEPLOYER_KEY_FILE: owner, QUANTOVA_SUBMIT: "yes", QUANTOVA_FINALITY_FILE: pin }, more);
   const pinG = pinFile("pin-g.json", JSON.stringify({ chain_id: "Q-test-net-01", genesis_hash: G, roster: [] }));
   let g = await gateway({ chain: "Q-test-net-01", genesis: "ab".repeat(32) });
@@ -447,7 +456,8 @@ async function genesis() {
   r = run(BASE, "deploy.js", { QUANTOVA_GATEWAY: g.url, COMPILED_CONTRACT_PATH: c, QUANTOVA_DEPLOYER_KEY_FILE: owner, QUANTOVA_SUBMIT: "yes" }, ACCEPT);
   s = await g.state();
   await g.stop();
-  check("the public chain with no pinned genesis gets nothing signed", r.status === 1 && s.submits === 0 && r.out.includes("needs QCore.js 0.9.0 or later and the genesis hash"), r.out);
+  if (TESTNET_GENESIS === BUILT_IN_GENESIS) check("the public chain with only the genesis QCore.js carries gets nothing signed without a verified head", r.status === 1 && s.submits === 0 && r.out.includes("must be verified against a trusted validator roster"), r.out);
+  else check("the public chain with no pinned genesis gets nothing signed", r.status === 1 && s.submits === 0 && r.out.includes("needs QCore.js 0.9.0 or later and the genesis hash"), r.out);
 }
 
 async function proven() {
@@ -455,7 +465,7 @@ async function proven() {
     console.log(`skip proven deployments, QCore.js ${VERSION} cannot sign over a pinned genesis`);
     return;
   }
-  const G = "c3".repeat(32);
+  const G = TESTNET_GENESIS;
   const scenario = async (label, settings, pinFrom, want, more = {}, args = []) => {
     const c = compiled("c.json", settings.events !== false);
     const owner = newKey(`p-${crypto.randomBytes(3).toString("hex")}.key`);
